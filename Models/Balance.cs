@@ -5,7 +5,6 @@
         public long Id { get; set; }
         public long FinanceEntityId { get; set; }
         public long CurrencyId { get; set; }
-        public string Name { get; set; }
         public decimal Sum { get; set; }
     }
 }

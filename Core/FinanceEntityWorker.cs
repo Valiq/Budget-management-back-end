@@ -1,30 +1,75 @@
 ﻿using Budget_management_back_end.Models;
+using Dapper;
 using MySqlConnector;
+using Org.BouncyCastle.Asn1.Ocsp;
+using System.Security.Principal;
+using static Budget_management_back_end.Records.Records;
+using static Dapper.SqlMapper;
 
 namespace Budget_management_back_end.Core
 {
-    internal class FinanceEntityWorker
+    internal class FinanceEntityWorker : AuthorizationWorker
     {
-        private readonly IConfiguration Configuration;
+        internal FinanceEntityWorker(IConfiguration configuration) : base(configuration) { }
 
-        internal FinanceEntityWorker(IConfiguration configuration)
+        private bool HaveGrants(MySqlConnection connection, long accountId, string token)
         {
-            Configuration = configuration;
+            string sql = @"SELECT User_Id FROM User_Account WHERE Account_Id = @Id 
+                            AND Role_Id = (SELECT Id FROM Role WHERE Code = 'Admin' OR Code = 'Editor')";
+
+            var result = connection.Query<long>(sql, new { Id = accountId }).ToList();
+
+            bool flag = false;
+
+            foreach (var userId in result)
+                if (CheckToken(connection, token, userId))
+                {
+                    flag = true;
+                    break;
+                }
+
+            return flag;
         }
 
-        internal FinanceEntity AddFinanceEntity(long accountId, FinanceEntity entity)
+        private long GetAccountId(MySqlConnection connection, long entityId)
+        {
+            string sql = @"SELECT Account_Id FROM Finance_Entity WHERE Id = @Id";
+
+            return connection.QueryFirst<long>(sql, new { Id = entityId });
+        }
+
+        internal long AddFinanceEntity(long accountId, FinanceEntityRequest request, string token)
         {
             using (MySqlConnection connection = new MySqlConnection(Configuration.GetValue<string>("ConnectionString")))
             {
                 try
                 {
+                    connection.Open();
 
+                    if (HaveGrants(connection, accountId, token))
+                    {
+                        string sql = @"INSERT INTO Finance_Entity (Account_Id, Name, Description) VALUES (@AccountId, @Name, @Description);
+                                       SELECT LAST_INSERT_ID();";
 
-                    return new FinanceEntity();
+                        FinanceEntity entity = new FinanceEntity()
+                        {
+                            AccountId = accountId,
+                            Name = request.name,
+                            Description = request.description
+                        };
+
+                        long id = connection.QuerySingle<long>(sql, entity);
+
+                        return id;
+                    }
+                    else
+                    {
+                        return -1;
+                    }
                 }
                 catch (Exception ex)
                 {
-                    return null;
+                    return -1;
                 }
             }
         }
@@ -35,9 +80,13 @@ namespace Budget_management_back_end.Core
             {
                 try
                 {
+                    connection.Open();
 
+                    string sql = @"SELECT Id, Account_Id as AccountId, Name, Description FROM Finance_Entity WHERE Account_Id = @AccountId";
 
-                    return new List<FinanceEntity>();
+                    var result = connection.Query<FinanceEntity>(sql, new { AccountId = id }).ToList();
+
+                    return result;
                 }
                 catch (Exception ex)
                 {
@@ -46,15 +95,56 @@ namespace Budget_management_back_end.Core
             }
         }
 
-        internal bool UpdateFinanceEntity(long id)
+        internal bool UpdateFinanceEntity(FinanceEntity entity, string token)
         {
             using (MySqlConnection connection = new MySqlConnection(Configuration.GetValue<string>("ConnectionString")))
             {
                 try
                 {
+                    connection.Open();
 
+                    long accountId = GetAccountId(connection, entity.Id);
 
-                    return true;
+                    if (HaveGrants(connection, accountId, token))
+                    {
+                        var updateFields = new List<string>();
+                        var parameters = new Dictionary<string, object>();
+
+                        if (!string.IsNullOrEmpty(entity.Name))
+                        {
+                            updateFields.Add("Name = @Name");
+                            parameters.Add("@Name", entity.Name);
+                        }
+
+                        if (!string.IsNullOrEmpty(entity.Description))
+                        {
+                            updateFields.Add("Description = @Description");
+                            parameters.Add("@Description", entity.Description);
+                        }
+
+                        if (!updateFields.Any())
+                            return true; // Нет полей для обновления
+
+                        string query = $@"UPDATE Finance_Entity SET {string.Join(", ", updateFields)} WHERE Id = @Id";
+
+                        using (MySqlCommand command = new MySqlCommand(query, connection))
+                        {
+                            // Добавляем все параметры в команду
+                            foreach (var param in parameters)
+                            {
+                                command.Parameters.AddWithValue(param.Key, param.Value);
+                            }
+                            command.Parameters.AddWithValue("@Id", entity.Id);
+
+                            int rowsAffected = command.ExecuteNonQuery();
+                        }
+
+                        return true;
+                    }
+                    else
+                    {
+                        return false;
+                    }
                 }
                 catch (Exception ex)
                 {
@@ -63,15 +153,28 @@ namespace Budget_management_back_end.Core
             }
         }
 
-        internal bool DeleteFinanceEntity(long id)
+        internal bool DeleteFinanceEntity(long id, string token)
         {
             using (MySqlConnection connection = new MySqlConnection(Configuration.GetValue<string>("ConnectionString")))
             {
                 try
                 {
+                    connection.Open();
 
+                    long accountId = GetAccountId(connection, id);
 
-                    return true;
+                    if (HaveGrants(connection, accountId, token))
+                    {
+                        string sql = @"DELETE FROM Finance_Entity WHERE Id = @Id";
+
+                        connection.Execute(sql, new { Id = id} );
+
+                        return true;
+                    }
+                    else
+                    {
+                        return false;
+                    }
                 }
                 catch (Exception ex)
                 {

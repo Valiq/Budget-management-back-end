@@ -1,30 +1,31 @@
 ﻿using Budget_management_back_end.Models;
 using MySqlConnector;
+using static Budget_management_back_end.Records.Records;
 
 namespace Budget_management_back_end.Core
 {
-    internal class BalanceWorker
+    internal class BalanceWorker : AuthorizationWorker
     {
-        private readonly IConfiguration Configuration;
+        internal BalanceWorker(IConfiguration configuration) : base(configuration) { }
 
-        internal BalanceWorker(IConfiguration configuration)
-        {
-            Configuration = configuration;
-        }
-
-        internal Balance AddBalance(long entityId, Balance balance)
+        internal long AddBalance(long entityId, BalanceRequest request)
         {
             using (MySqlConnection connection = new MySqlConnection(Configuration.GetValue<string>("ConnectionString")))
             {
                 try
                 {
+                    Balance balance = new Balance()
+                    {
+                        FinanceEntityId = entityId,
+                        CurrencyId = request.currencyId,
+                        Sum = request.sum
+                    };
 
-
-                    return new Balance();
+                    return 0;
                 }
                 catch (Exception ex)
                 {
-                    return null;
+                    return -1;
                 }
             }
         }
@@ -59,23 +60,6 @@ namespace Budget_management_back_end.Core
                 catch (Exception ex)
                 {
                     return null;
-                }
-            }
-        }
-
-        internal bool UpdateBalance(long id)
-        {
-            using (MySqlConnection connection = new MySqlConnection(Configuration.GetValue<string>("ConnectionString")))
-            {
-                try
-                {
-
-
-                    return true;
-                }
-                catch (Exception ex)
-                {
-                    return false;
                 }
             }
         }

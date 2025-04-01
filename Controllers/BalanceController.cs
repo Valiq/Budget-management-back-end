@@ -1,5 +1,6 @@
 ﻿using Budget_management_back_end.Core;
 using Budget_management_back_end.Models;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using static Budget_management_back_end.Records.Records;
 
@@ -8,46 +9,53 @@ namespace Budget_management_back_end.Controllers
     [ApiController]
     public class BalanceController : Controller
     {
-        private readonly UserWorker Worker;
+        private readonly BalanceWorker Worker;
 
         public BalanceController(IConfiguration configuration)
         {
-            Worker = new UserWorker(configuration);
+            Worker = new BalanceWorker(configuration);
         }
 
         [HttpPost("api/v1/finance-entities/{id}/balances")]
-        public async Task<IActionResult> CreateBalance([FromRoute] long id, [FromBody] BalanceRequest request)
+        public async Task<IActionResult> CreateBalance([FromHeader] string Token, [FromRoute] long entityId, [FromBody] BalanceRequest request)
         {
-            Balance balance = new Balance();
-            return CreatedAtAction(balance.Name, new { id = balance.Id }, balance);
+            long id = Worker.AddBalance(entityId, request);
+
+            if (id != -1)
+                return Ok(new { id });
+            else
+                return BadRequest();
         }
 
         [HttpGet("api/v1/finance-entities/{id}/balances")]
-        public async Task<IActionResult> GetBalanceByEntity([FromRoute] long id)
+        public async Task<IActionResult> GetBalanceByEntity([FromHeader] string Token, [FromRoute] long id)
         {
+            List<Balance> balances = Worker.GetBalanceByFinanceEntityId(id);
 
-            return Ok(new { balances = new List<Balance>() });
+            if (balances is not null)
+                return Ok(new { balances });
+            else
+                return NotFound();
         }
 
         [HttpGet("api/v1/balances/currencies")]
-        public async Task<IActionResult> GetCurrency()
+        public async Task<IActionResult> GetCurrency([FromHeader] string Token)
         {
+            List<Currency> currencies = Worker.GetCurrency();
 
-            return Ok(new { currencies = new List<Currency>() });
-        }
-
-        [HttpPatch("api/v1/balances/{id}")]
-        public async Task<IActionResult> UpdateBalance([FromRoute] long id)
-        {
-
-            return Ok();
+            if (currencies is not null)
+            return Ok(new { currencies });
+            else
+                return NotFound();
         }
 
         [HttpDelete("api/v1/balances/{id}")]
-        public async Task<IActionResult> DeleteBalance([FromRoute] long id)
+        public async Task<IActionResult> DeleteBalance([FromHeader] string Token, [FromRoute] long id)
         {
-
-            return Ok();
+            if (Worker.DeleteBalance(id))
+                return Ok();
+            else
+                return BadRequest();
         }
     }
 }

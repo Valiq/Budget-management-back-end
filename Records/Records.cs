@@ -58,13 +58,7 @@ namespace Budget_management_back_end.Records
             long financeEntityId,
 
             [Required]
-            [MinLength(3)]
-            [MaxLength(30)]
-            string currencyCode,
-
-            [Required]
-            [MaxLength(255)]
-            string name,
+            long currencyId,
 
             [Required]
             decimal sum
@@ -100,6 +94,26 @@ namespace Budget_management_back_end.Records
             [MaxLength(255)]
             string name,
             string description
+        );
+
+        public record TransactionRequest(
+            [Required]
+            long accountId,
+
+            [Required]
+            long balanceFromId,
+
+            [Required]
+            long balanceToId,
+
+            [Required]
+            decimal Sum
+        );
+
+        public record UserResponse(
+           long id,
+           string name,
+           string email
         );
     }
 }
