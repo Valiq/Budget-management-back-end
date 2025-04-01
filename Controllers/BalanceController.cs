@@ -19,7 +19,7 @@ namespace Budget_management_back_end.Controllers
         [HttpPost("api/v1/finance-entities/{id}/balances")]
         public async Task<IActionResult> CreateBalance([FromHeader] string Token, [FromRoute] long entityId, [FromBody] BalanceRequest request)
         {
-            long id = Worker.AddBalance(entityId, request);
+            long id = Worker.AddBalance(entityId, request, Token);
 
             if (id != -1)
                 return Ok(new { id });
@@ -52,7 +52,7 @@ namespace Budget_management_back_end.Controllers
         [HttpDelete("api/v1/balances/{id}")]
         public async Task<IActionResult> DeleteBalance([FromHeader] string Token, [FromRoute] long id)
         {
-            if (Worker.DeleteBalance(id))
+            if (Worker.DeleteBalance(id, Token))
                 return Ok();
             else
                 return BadRequest();

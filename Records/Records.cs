@@ -17,9 +17,8 @@ namespace Budget_management_back_end.Records
            string email,
 
            [Required]
-           [MinLength(8)]
-           [MaxLength(255)]
-           [RegularExpression(@"^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).+$")]
+           [MinLength(6)]
+           [MaxLength(50)]
            string password
         );
 
@@ -30,9 +29,8 @@ namespace Budget_management_back_end.Records
            string email,
 
            [Required]
-           [MinLength(8)]
-           [MaxLength(255)]
-           [RegularExpression(@"^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).+$")]
+           [MinLength(6)]
+           [MaxLength(50)]
            string password
         );
 
@@ -55,9 +53,6 @@ namespace Budget_management_back_end.Records
 
         public record BalanceRequest(
             [Required]
-            long financeEntityId,
-
-            [Required]
             long currencyId,
 
             [Required]
@@ -73,9 +68,8 @@ namespace Budget_management_back_end.Records
 
         public record UpdatePasswordRequest(
             [Required]
-            [MinLength(8)]
-            [MaxLength(255)]
-            [RegularExpression(@"^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).+$")]
+            [MinLength(6)]
+            [MaxLength(50)]
             string password
         );
 
@@ -100,11 +94,9 @@ namespace Budget_management_back_end.Records
             [Required]
             long accountId,
 
-            [Required]
-            long balanceFromId,
+            long? balanceFromId,
 
-            [Required]
-            long balanceToId,
+            long? balanceToId,
 
             [Required]
             decimal Sum

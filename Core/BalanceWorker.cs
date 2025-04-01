@@ -1,6 +1,9 @@
 ﻿using Budget_management_back_end.Models;
+using Dapper;
 using MySqlConnector;
+using Org.BouncyCastle.Asn1.Ocsp;
 using static Budget_management_back_end.Records.Records;
+using static Dapper.SqlMapper;
 
 namespace Budget_management_back_end.Core
 {
@@ -8,20 +11,52 @@ namespace Budget_management_back_end.Core
     {
         internal BalanceWorker(IConfiguration configuration) : base(configuration) { }
 
-        internal long AddBalance(long entityId, BalanceRequest request)
+        private bool HaveGrants(MySqlConnection connection, long entityId, string token)
+        {
+            string sql = @"SELECT User_Id FROM User_Account WHERE 
+                            Account_Id = (SELECT Account_Id FROM Finance_Entity WHERE Id = @Id)
+                            AND Role_Id = (SELECT Id FROM Role WHERE Code = 'Admin' OR Code = 'Editor')";
+
+            var result = connection.Query<long>(sql, new { Id = entityId }).ToList();
+
+            bool flag = false;
+
+            foreach (var userId in result)
+                if (CheckToken(connection, token, userId))
+                {
+                    flag = true;
+                    break;
+                }
+
+            return flag;
+        }
+
+        internal long AddBalance(long entityId, BalanceRequest request, string token)
         {
             using (MySqlConnection connection = new MySqlConnection(Configuration.GetValue<string>("ConnectionString")))
             {
                 try
                 {
-                    Balance balance = new Balance()
-                    {
-                        FinanceEntityId = entityId,
-                        CurrencyId = request.currencyId,
-                        Sum = request.sum
-                    };
+                    connection.Open();
 
-                    return 0;
+                    if (HaveGrants(connection, entityId, token))
+                    {
+                        Balance balance = new Balance()
+                        {
+                            FinanceEntityId = entityId,
+                            CurrencyId = request.currencyId,
+                            Sum = request.sum
+                        };
+
+                        string sql = @"INSERT INTO Balance (Finance_Entity_Id, Currency_Id, Sum) VALUES (@FinanceEntityId, @CurrencyId, @Sum);
+                                       SELECT LAST_INSERT_ID();";
+                        
+                        return connection.QuerySingle<long>(sql, balance);
+                    }
+                    else
+                    {
+                        return -1;
+                    }
                 }
                 catch (Exception ex)
                 {
@@ -36,9 +71,11 @@ namespace Budget_management_back_end.Core
             {
                 try
                 {
+                    connection.Open();
 
+                    string sql = "SELECT * FROM Balance WHERE Finance_Entity_Id = @Id";
 
-                    return new List<Balance>();
+                    return connection.Query<Balance>(sql, new { Id = id}).ToList();
                 }
                 catch (Exception ex)
                 {
@@ -53,9 +90,11 @@ namespace Budget_management_back_end.Core
             {
                 try
                 {
+                    connection.Open();
 
+                    string sql = "SELECT * FROM Currency";
 
-                    return new List<Currency>();
+                    return connection.Query<Currency>(sql).ToList();
                 }
                 catch (Exception ex)
                 {
@@ -64,15 +103,27 @@ namespace Budget_management_back_end.Core
             }
         }
 
-        internal bool DeleteBalance(long id)
+        internal bool DeleteBalance(long id, string token)
         {
             using (MySqlConnection connection = new MySqlConnection(Configuration.GetValue<string>("ConnectionString")))
             {
                 try
                 {
+                    connection.Open();
 
+                    if (HaveGrants(connection, id, token))
+                    {
+                        string sql = "DELETE FROM Balance WHERE Id = @Id";
 
-                    return true;
+                        connection.Execute(sql, new { Id = id });
+
+                        return true;
+                    }
+                    else
+                    {
+                        return false;
+                    }
+                  
                 }
                 catch (Exception ex)
                 {

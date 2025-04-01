@@ -36,17 +36,15 @@ namespace Budget_management_back_end.Core
             }
         }
 
-        internal bool CheckToken(MySqlConnection connection, string token, long userId)
+        protected bool CheckToken(MySqlConnection connection, string token, long userId)
         {
             try
             {
-                connection.Open();
+                string sql = @"SELECT * FROM User WHERE Id = @Id";
 
-                string sql = @"SELECT Id FROM User WHERE Token = @Token";
+                User user = connection.QueryFirst<User>(sql, new { Id = userId });
 
-                var result = connection.Query<long>(sql, new { Token = HashPassword(token) }).ToList();
-
-                if (result.Count() > 0 && result[0] == userId)
+                if (Verify(token, user.Token))
                     return true;
                 else
                     return false;

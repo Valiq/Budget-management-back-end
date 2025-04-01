@@ -58,9 +58,7 @@ namespace Budget_management_back_end.Core
                             Description = request.description
                         };
 
-                        long id = connection.QuerySingle<long>(sql, entity);
-
-                        return id;
+                        return connection.QuerySingle<long>(sql, entity);
                     }
                     else
                     {

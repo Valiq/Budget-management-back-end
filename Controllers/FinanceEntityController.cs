@@ -22,7 +22,7 @@ namespace Budget_management_back_end.Controllers
             long id = Worker.AddFinanceEntity(accountId, request, Token);
 
             if (id != -1)
-                return CreatedAtAction(request.name, new { id });
+                return Ok(new { Id = id });
             else
                 return BadRequest();
         }

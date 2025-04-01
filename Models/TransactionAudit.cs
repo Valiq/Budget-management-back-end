@@ -4,8 +4,8 @@
     {
         public long Id { get; set; }
         public long AccountId { get; set; }
-        public long BalanceFromId { get; set; }
-        public long BalanceToId { get; set; }
+        public long? BalanceFromId { get; set; }
+        public long? BalanceToId { get; set; }
         public decimal Sum { get; set; }
         public string DateTime { get; set; }
         public string UserName { get; set; }

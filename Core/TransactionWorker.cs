@@ -1,6 +1,7 @@
 ﻿using Budget_management_back_end.Models;
 using Dapper;
 using MySqlConnector;
+using System.Transactions;
 using static Budget_management_back_end.Records.Records;
 
 namespace Budget_management_back_end.Core
@@ -49,17 +50,36 @@ namespace Budget_management_back_end.Core
 
         internal bool AddTransaction(TransactionRequest request, string token)
         {
+            if (request.balanceFromId == null && request.balanceToId == null)
+                return false;
+
             using (MySqlConnection connection = new MySqlConnection(Configuration.GetValue<string>("ConnectionString")))
             {
-                try
+                connection.Open();
+
+                using (var transaction = connection.BeginTransaction())
                 {
-                    connection.Open();
-
-                    if (HaveGrants(connection, request.accountId, token, "A", out string role))
+                    try
                     {
-                        UserResponse user = GetUser(connection, token);
+                        if (HaveGrants(connection, request.accountId, token, "A", out string role))
+                        {
+                            string sql;
 
-                        string sql = @"INSERT INTO Transaction (Account_Id, Balance_From_Id, Balance_To_Id, Sum, Date_Time, User_Name, User_Email, User_Role) 
+                            if (request.balanceFromId is not null)
+                            {
+                                sql = @"UPDATE Balance SET Sum = Sum - @Sum WHERE Id = @Id";
+                                connection.Execute(sql, new { request.Sum, Id = request.balanceFromId});
+                            }
+
+                            if (request.balanceToId is not null)
+                            {
+                                sql = @"UPDATE Balance SET Sum = Sum + @Sum WHERE Id = @Id";
+                                connection.Execute(sql, new { request.Sum, Id = request.balanceToId });
+                            }
+
+                            UserResponse user = GetUser(connection, token);
+
+                            sql = @"INSERT INTO Transaction (Account_Id, Balance_From_Id, Balance_To_Id, Sum, Date_Time, User_Name, User_Email, User_Role) 
                                        VALUES (Account_Id = @AccountId, 
                                                Balance_From_Id = @BalanceFromId, 
                                                Balance_To_Id = @BalanceToId, 
@@ -69,30 +89,34 @@ namespace Budget_management_back_end.Core
                                                User_Email = @UserEmail, 
                                                User_Role = @UserRole)";
 
-                        TransactionAudit transaction = new TransactionAudit() 
-                        { 
-                            AccountId = request.accountId,
-                            BalanceFromId = request.balanceFromId,
-                            BalanceToId = request.balanceToId,
-                            Sum = request.Sum,
-                            DateTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"),
-                            UserName = user.name,
-                            UserEmail = user.email,
-                            UserRole = role
-                        };
+                            TransactionAudit audit = new TransactionAudit()
+                            {
+                                AccountId = request.accountId,
+                                BalanceFromId = request.balanceFromId,
+                                BalanceToId = request.balanceToId,
+                                Sum = request.Sum,
+                                DateTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"),
+                                UserName = user.name,
+                                UserEmail = user.email,
+                                UserRole = role
+                            };
 
-                        connection.Execute(sql, transaction);
+                            connection.Execute(sql, audit);
 
-                        return true;
+                            transaction.Commit();
+                            return true;
+                        }
+                        else
+                        {
+                            transaction.Rollback();
+                            return false;
+                        }
                     }
-                    else
+                    catch (Exception ex)
                     {
+                        transaction.Rollback();
                         return false;
                     }
-                }
-                catch (Exception ex)
-                {
-                    return false;
                 }
             }
         }

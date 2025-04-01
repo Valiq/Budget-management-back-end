@@ -15,7 +15,12 @@ namespace Budget_management_back_end.Core
         {
             string sql = @"SELECT id FROM User WHERE Email = @Email";
 
-            return connection.QueryFirst<long>(sql, new { Email = email});
+            var result = connection.Query<long>(sql, new { Email = email}).ToList();
+
+            if (result.Count > 0)
+                return result[0];
+            else
+                return -1;
         }
 
         internal long AddUser(UserRequest request)
@@ -63,11 +68,12 @@ namespace Budget_management_back_end.Core
                 {
                     connection.Open();
 
-                    var hashedPassword = HashPassword(request.password);
+                    string sql = @"SELECT * FROM User WHERE Email = @Email";
 
-                    string sql = @"SELECT Id, Name, Email FROM User WHERE Email = @Email AND Password = @Password";
+                    User user = connection.QueryFirst<User>(sql, new { Email = request.email });
 
-                    User user = connection.QueryFirst<User>(sql, new { Email = request.email, Password = hashedPassword });
+                    if (!Verify(request.password, user.Password))
+                        return string.Empty;
 
                     sql = @"INSERT INTO User_Audit (User_Name, User_Email, Login_Date) VALUES (@UserName, @UserEmail, @LoginDate)";
 
@@ -245,7 +251,7 @@ namespace Budget_management_back_end.Core
                         if (!updateFields.Any())
                             return true; // Нет полей для обновления
 
-                        string query = $@"UPDATE Users SET {string.Join(", ", updateFields)} WHERE Id = @Id";
+                        string query = $@"UPDATE User SET {string.Join(", ", updateFields)} WHERE Id = @Id";
 
                         using (MySqlCommand command = new MySqlCommand(query, connection))
                         {
