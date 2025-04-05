@@ -78,7 +78,7 @@ namespace Budget_management_back_end.Controllers
             string token = Worker.UpdateUserEmail(id, request.email, Token);
 
             if (!string.IsNullOrEmpty(token))
-                return Ok();
+                return Ok(new { Token = token });
             else
                 return BadRequest();
         }
@@ -87,10 +87,10 @@ namespace Budget_management_back_end.Controllers
         [HttpPatch("api/v1/users/{id}/password")]
         public async Task<IActionResult> UpdatePassword([FromHeader] string Token, [FromRoute] long id, [FromBody] UpdatePasswordRequest request)
         {
-            string token = Worker.UpdateUserPassword(id, request.password, Token);
+            string token = Worker.UpdateUserPassword(id, request, Token);
 
             if (!string.IsNullOrEmpty(token))
-                return Ok();
+                return Ok(new { Token = token });
             else
                 return BadRequest();
         }

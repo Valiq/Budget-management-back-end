@@ -35,12 +35,12 @@ namespace Budget_management_back_end.Core
                             CreateDate = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss")
                         };
 
-                        string sql = @"INSERT INTO Account (Name, Description, Create_Date) VALUES (@Name)
+                        string sql = @"INSERT INTO Account (Name, Description, Create_Date) VALUES (@Name, @Description, @CreateDate);
                                        SELECT LAST_INSERT_ID();";
 
                         long id = connection.QuerySingle<long>(sql, account);
 
-                        sql = @"SELECT Id FROM Role WHERE Code = Admin";
+                        sql = @"SELECT Id FROM Role WHERE Code = 'Admin'";
 
                         long roleId = connection.QueryFirst<long>(sql);
 
@@ -76,7 +76,7 @@ namespace Budget_management_back_end.Core
                     {
                         string sql = @"SELECT Id FROM Role WHERE Code = @Role";
 
-                        long roleId = connection.QueryFirst<long>(sql);
+                        long roleId = connection.QueryFirst<long>(sql, new { Role = role });
 
                         sql = @"SELECT Id FROM User WHERE Email = @Email";
 
@@ -108,9 +108,20 @@ namespace Budget_management_back_end.Core
                 {
                     connection.Open();
 
-                    string sql = @"SELECT Id, Name, Description, Create_Date FROM Account WHERE Id = @id";
+                    string sql = @"SELECT Id, Name, Description, Create_Date as CreateDate FROM Account WHERE Id = @Id";
 
-                    return connection.QueryFirst<Account>(sql, new { Id = id});
+                    Account account = connection.QueryFirst<Account>(sql, new { Id = id });
+
+                    sql = @"SELECT User.id as id, User.name as name, email, code as role FROM User 
+                            JOIN User_Account ON User.id = User_Id 
+                            JOIN Role ON role_id = Role.id 
+                            WHERE Account_Id = @Id";
+
+                    List<UserAccountResponse> users = connection.Query<UserAccountResponse>(sql, new { account.Id }).ToList();
+
+                    account.Users = users;
+
+                    return account;
                 }
                 catch (Exception ex)
                 {
@@ -130,7 +141,21 @@ namespace Budget_management_back_end.Core
                     string sql = @"SELECT Id, Name, Description, Create_Date as CreateDate FROM Account WHERE Id IN 
                                    (SELECT Account_Id FROM User_Account WHERE User_Id = @Id)";
 
-                    return connection.Query<Account>(sql, new { Id = id }).ToList();
+                    List<Account> accounts = connection.Query<Account>(sql, new { Id = id }).ToList();
+
+                    sql = @"SELECT User.id as id, User.name as name, email, code as role FROM User 
+                            JOIN User_Account ON User.id = User_Id 
+                            JOIN Role ON role_id = Role.id 
+                            WHERE Account_Id = @Id";
+
+                    for (int i = 0; i < accounts.Count; i++)
+                    {
+                        List<UserAccountResponse> users = connection.Query<UserAccountResponse>(sql, new { accounts[i].Id}).ToList();
+
+                        accounts[i].Users = users;
+                    }
+
+                    return accounts;
                 }
                 catch (Exception ex)
                 {

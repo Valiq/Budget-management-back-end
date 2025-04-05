@@ -130,9 +130,17 @@ namespace Budget_management_back_end.Core
                 {
                     connection.Open();
 
-                    string sql = @"SELECT id, name, email FROM User WHERE Token = @Token";
+                    var users = connection.Query<User>("SELECT id, name, email, token FROM User");
 
-                    return connection.QueryFirst<UserResponse>(sql, new { Token = token});
+                    foreach (var user in users)
+                    {
+                        if (Verify(token, user.Token))
+                        {
+                            return new UserResponse(user.Id, user.Name, user.Email);
+                        }
+                    }
+
+                    return null;
                 }
                 catch (Exception ex)
                 {
@@ -179,7 +187,7 @@ namespace Budget_management_back_end.Core
 
                     if (CheckToken(connection, token, id))
                     {
-                        string sql = @"UPDATE User SET Email = @Email, Toke = @Toke WHERE Id = @Id";
+                        string sql = @"UPDATE User SET Email = @Email, Token = @Token WHERE Id = @Id";
 
                         string newToken = Guid.NewGuid().ToString();
 
@@ -199,7 +207,7 @@ namespace Budget_management_back_end.Core
             }
         }
 
-        internal string UpdateUserPassword(long id, string password, string token)
+        internal string UpdateUserPassword(long id, UpdatePasswordRequest request, string token)
         {
             using (MySqlConnection connection = new MySqlConnection(Configuration.GetValue<string>("ConnectionString")))
             {
@@ -209,18 +217,23 @@ namespace Budget_management_back_end.Core
 
                     if (CheckToken(connection, token, id))
                     {
-                        string sql = @"UPDATE User SET Password = @Password, Toke = @Toke WHERE Id = @Id";
+                        string sql = @"SELECT Password FROM User WHERE Id = @Id";
 
-                        string newToken = Guid.NewGuid().ToString();
+                        string currentPassword = connection.QueryFirst<string>(sql, new { Id = id });
 
-                        connection.Execute(sql, new { Password = password, Token = HashPassword(newToken), Id = id });
+                        if (Verify(request.currentPassword, currentPassword)) 
+                        {
+                            sql = @"UPDATE User SET Password = @Password, Token = @Token WHERE Id = @Id";
 
-                        return newToken;
+                            string newToken = Guid.NewGuid().ToString();
+
+                            connection.Execute(sql, new { Password = HashPassword(request.newPassword), Token = HashPassword(newToken), Id = id });
+
+                            return newToken;
+                        }
                     }
-                    else
-                    {
-                        return string.Empty;
-                    }
+
+                    return string.Empty;
                 }
                 catch (Exception ex)
                 {

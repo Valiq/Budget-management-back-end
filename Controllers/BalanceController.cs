@@ -17,12 +17,12 @@ namespace Budget_management_back_end.Controllers
         }
 
         [HttpPost("api/v1/finance-entities/{id}/balances")]
-        public async Task<IActionResult> CreateBalance([FromHeader] string Token, [FromRoute] long entityId, [FromBody] BalanceRequest request)
+        public async Task<IActionResult> CreateBalance([FromHeader] string Token, [FromRoute] long id, [FromBody] BalanceRequest request)
         {
-            long id = Worker.AddBalance(entityId, request, Token);
+            long balanceId = Worker.AddBalance(id, request, Token);
 
-            if (id != -1)
-                return Ok(new { id });
+            if (balanceId != -1)
+                return Ok(new { balanceId });
             else
                 return BadRequest();
         }
@@ -39,7 +39,7 @@ namespace Budget_management_back_end.Controllers
         }
 
         [HttpGet("api/v1/balances/currencies")]
-        public async Task<IActionResult> GetCurrency([FromHeader] string Token)
+        public async Task<IActionResult> GetCurrency()
         {
             List<Currency> currencies = Worker.GetCurrency();
 

@@ -8,6 +8,6 @@ namespace Budget_management_back_end.Models
         public string Name { get; set; }
         public string Description { get; set; }
         public string CreateDate { get; set; }
-        public List<UserResponse> Users { get; set;}
+        public List<UserAccountResponse> Users { get; set;}
     }
 }

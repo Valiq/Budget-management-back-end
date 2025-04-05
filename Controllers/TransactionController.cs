@@ -28,7 +28,7 @@ namespace Budget_management_back_end.Controllers
         [HttpGet("api/v1/accounts/{id}/transactions")]
         public async Task<IActionResult> GetAccountTransaction([FromHeader] string Token, [FromRoute] long id)
         {
-            List<TransactionAudit> audit = Worker.GetAccountTransaction(id, Token);
+            List<TransactionResponse> audit = Worker.GetAccountTransaction(id, Token);
 
             if (audit is not null)
                 return Ok(audit);

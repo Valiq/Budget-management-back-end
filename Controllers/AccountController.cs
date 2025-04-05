@@ -20,12 +20,12 @@ namespace Budget_management_back_end.Controllers
         }
 
         [HttpPost("api/v1/users/{id}/accounts")]
-        public async Task<IActionResult> CreateAccount([FromHeader] string Token, [FromRoute] long userId, [FromBody] AccountRequest request)
+        public async Task<IActionResult> CreateAccount([FromHeader] string Token, [FromRoute] long id, [FromBody] AccountRequest request)
         {
-            long id = Worker.AddAccount(userId, request, Token);
+            long accountId = Worker.AddAccount(id, request, Token);
 
-            if (id != -1)
-                return Ok( new { Id = id });
+            if (accountId != -1)
+                return Ok( new { Id = accountId });
             else
                 return BadRequest();
         }

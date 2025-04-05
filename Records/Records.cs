@@ -1,5 +1,6 @@
 ﻿using Budget_management_back_end.Models;
 using System.ComponentModel.DataAnnotations;
+using System.Diagnostics.CodeAnalysis;
 using System.Security.Cryptography.X509Certificates;
 
 namespace Budget_management_back_end.Records
@@ -37,18 +38,15 @@ namespace Budget_management_back_end.Records
         public record AccountRequest(
             [Required]
             [MaxLength(255)]
-            string name,
-            string description
+            string name,   
+            string? description
         );
 
         public record FinanceEntityRequest(
             [Required]
-            long accountId,
-
-            [Required]
             [MaxLength(255)]
             string name,
-            string description
+            string? description
         );
 
         public record BalanceRequest(
@@ -70,24 +68,31 @@ namespace Budget_management_back_end.Records
             [Required]
             [MinLength(6)]
             [MaxLength(50)]
-            string password
+            string currentPassword,
+
+            [Required]
+            [MinLength(6)]
+            [MaxLength(50)]
+            string newPassword
         );
 
         public record UpdaeUserRequest(
             [MaxLength(255)]
-            string name
+            string? name
         );
 
         public record UpdateAccountRequest(
             [MaxLength(255)]
-            string name,
-            string description
+            string? name,
+
+            string? description
         );
 
         public record UpdateFinanceEntityRequest(
             [MaxLength(255)]
-            string name,
-            string description
+            string? name,
+
+            string? description
         );
 
         public record TransactionRequest(
@@ -106,6 +111,25 @@ namespace Budget_management_back_end.Records
            long id,
            string name,
            string email
+        );
+
+        public record UserAccountResponse(
+            long id,
+            string name,
+            string email,
+            string role
+        );
+
+        public record TransactionResponse(
+            long id,
+            decimal sum,
+            string currency,
+            DateTime date,
+            string userName,
+            string userEmail,
+            string userRole,
+            string fromEntity,
+            string toEntity
         );
     }
 }

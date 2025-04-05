@@ -15,7 +15,7 @@ namespace Budget_management_back_end.Core
         private bool HaveGrants(MySqlConnection connection, long accountId, string token)
         {
             string sql = @"SELECT User_Id FROM User_Account WHERE Account_Id = @Id 
-                            AND Role_Id = (SELECT Id FROM Role WHERE Code = 'Admin' OR Code = 'Editor')";
+                            AND Role_Id IN (SELECT Id FROM Role WHERE Code = 'Admin' OR Code = 'Editor')";
 
             var result = connection.Query<long>(sql, new { Id = accountId }).ToList();
 
@@ -82,9 +82,16 @@ namespace Budget_management_back_end.Core
 
                     string sql = @"SELECT Id, Account_Id as AccountId, Name, Description FROM Finance_Entity WHERE Account_Id = @AccountId";
 
-                    var result = connection.Query<FinanceEntity>(sql, new { AccountId = id }).ToList();
+                    var entities = connection.Query<FinanceEntity>(sql, new { AccountId = id }).ToList();
 
-                    return result;
+                    sql = "SELECT Id, Finance_Entity_Id as FinanceEntityId, Currency_Id as CurrencyId, Sum FROM Balance WHERE Finance_Entity_Id = @Id";
+
+                    for (int i = 0; i < entities.Count(); i++)
+                    {
+                        entities[i].Balances = connection.Query<Balance>(sql, new { entities[i].Id }).ToList();
+                    }
+
+                    return entities;
                 }
                 catch (Exception ex)
                 {

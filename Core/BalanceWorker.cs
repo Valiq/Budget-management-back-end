@@ -14,8 +14,8 @@ namespace Budget_management_back_end.Core
         private bool HaveGrants(MySqlConnection connection, long entityId, string token)
         {
             string sql = @"SELECT User_Id FROM User_Account WHERE 
-                            Account_Id = (SELECT Account_Id FROM Finance_Entity WHERE Id = @Id)
-                            AND Role_Id = (SELECT Id FROM Role WHERE Code = 'Admin' OR Code = 'Editor')";
+                            Account_Id IN (SELECT Account_Id FROM Finance_Entity WHERE Id = @Id)
+                            AND Role_Id IN (SELECT Id FROM Role WHERE Code = 'Admin' OR Code = 'Editor')";
 
             var result = connection.Query<long>(sql, new { Id = entityId }).ToList();
 
@@ -29,6 +29,13 @@ namespace Budget_management_back_end.Core
                 }
 
             return flag;
+        }
+
+        private long GetEntityId(MySqlConnection connection, long balanceId)
+        {
+            string sql = @"SELECT Finance_Entity_ID FROM Balance WHERE Id = @Id";
+
+            return connection.QueryFirst<long>(sql, new { Id = balanceId });
         }
 
         internal long AddBalance(long entityId, BalanceRequest request, string token)
@@ -73,7 +80,7 @@ namespace Budget_management_back_end.Core
                 {
                     connection.Open();
 
-                    string sql = "SELECT * FROM Balance WHERE Finance_Entity_Id = @Id";
+                    string sql = "SELECT Id, Finance_Entity_Id as FinanceEntityId, Currency_Id as CurrencyId, Sum FROM Balance WHERE Finance_Entity_Id = @Id";
 
                     return connection.Query<Balance>(sql, new { Id = id}).ToList();
                 }
@@ -111,7 +118,9 @@ namespace Budget_management_back_end.Core
                 {
                     connection.Open();
 
-                    if (HaveGrants(connection, id, token))
+                    long entityId = GetEntityId(connection, id);
+
+                    if (HaveGrants(connection, entityId, token))
                     {
                         string sql = "DELETE FROM Balance WHERE Id = @Id";
 

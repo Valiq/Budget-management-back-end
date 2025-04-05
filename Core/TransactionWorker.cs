@@ -17,7 +17,7 @@ namespace Budget_management_back_end.Core
             switch (state)
             {
                 case "A":
-                    grants = "'Admin',Editor'";
+                    grants = "'Admin','Editor'";
                     break;
                 case "B":
                     grants = "'Admin','Editor','Viewer'";
@@ -25,7 +25,7 @@ namespace Budget_management_back_end.Core
             }
 
             string sql = @$"SELECT User_Id FROM User_Account WHERE Account_Id = @Id 
-                            AND Role_Id = (SELECT Id FROM Role WHERE Code IN ({grants}))";
+                            AND Role_Id IN (SELECT Id FROM Role WHERE Code IN ({grants}))";
 
             var result = connection.Query<long>(sql, new { Id = accountId }).ToList();
 
@@ -40,7 +40,7 @@ namespace Budget_management_back_end.Core
                     sql = @"SELECT Name FROM Role WHERE Id IN 
                             (SELECT Role_Id FROM User_Account WHERE Account_Id = @AccountId AND User_Id = @UserId)";
 
-                    role = connection.QueryFirst<string>(sql, new { AccountId = accountId, UserId = userId});
+                    role = connection.QueryFirst<string>(sql, new { AccountId = accountId, UserId = userId });
 
                     break;
                 }
@@ -57,71 +57,65 @@ namespace Budget_management_back_end.Core
             {
                 connection.Open();
 
-                using (var transaction = connection.BeginTransaction())
+                try
                 {
-                    try
+                    if (HaveGrants(connection, request.accountId, token, "A", out string role))
                     {
-                        if (HaveGrants(connection, request.accountId, token, "A", out string role))
+                        string sql;
+
+                        if (request.balanceFromId is not null)
                         {
-                            string sql;
-
-                            if (request.balanceFromId is not null)
-                            {
-                                sql = @"UPDATE Balance SET Sum = Sum - @Sum WHERE Id = @Id";
-                                connection.Execute(sql, new { request.Sum, Id = request.balanceFromId});
-                            }
-
-                            if (request.balanceToId is not null)
-                            {
-                                sql = @"UPDATE Balance SET Sum = Sum + @Sum WHERE Id = @Id";
-                                connection.Execute(sql, new { request.Sum, Id = request.balanceToId });
-                            }
-
-                            UserResponse user = GetUser(connection, token);
-
-                            sql = @"INSERT INTO Transaction (Account_Id, Balance_From_Id, Balance_To_Id, Sum, Date_Time, User_Name, User_Email, User_Role) 
-                                       VALUES (Account_Id = @AccountId, 
-                                               Balance_From_Id = @BalanceFromId, 
-                                               Balance_To_Id = @BalanceToId, 
-                                               Sum = @Sum, 
-                                               Date_Time = @DateTime, 
-                                               User_Name = @UserName, 
-                                               User_Email = @UserEmail, 
-                                               User_Role = @UserRole)";
-
-                            TransactionAudit audit = new TransactionAudit()
-                            {
-                                AccountId = request.accountId,
-                                BalanceFromId = request.balanceFromId,
-                                BalanceToId = request.balanceToId,
-                                Sum = request.Sum,
-                                DateTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"),
-                                UserName = user.name,
-                                UserEmail = user.email,
-                                UserRole = role
-                            };
-
-                            connection.Execute(sql, audit);
-
-                            transaction.Commit();
-                            return true;
+                            sql = @"UPDATE Balance SET Sum = Sum - @Sum WHERE Id = @Id";
+                            connection.Execute(sql, new { request.Sum, Id = request.balanceFromId });
                         }
-                        else
+
+                        if (request.balanceToId is not null)
                         {
-                            transaction.Rollback();
-                            return false;
+                            sql = @"UPDATE Balance SET Sum = Sum + @Sum WHERE Id = @Id";
+                            connection.Execute(sql, new { request.Sum, Id = request.balanceToId });
                         }
+
+                        UserResponse user = GetUser(connection, token);
+
+                        sql = @"INSERT INTO Transaction_Audit (Account_Id, Balance_From_Id, Balance_To_Id, Sum, Date_Time, User_Name, User_Email, User_Role) 
+                                       VALUES (@AccountId, 
+                                               @BalanceFromId, 
+                                               @BalanceToId, 
+                                               @Sum, 
+                                               @DateTime, 
+                                               @UserName, 
+                                               @UserEmail, 
+                                               @UserRole)";
+
+                        TransactionAudit audit = new TransactionAudit()
+                        {
+                            AccountId = request.accountId,
+                            BalanceFromId = request.balanceFromId,
+                            BalanceToId = request.balanceToId,
+                            Sum = request.Sum,
+                            DateTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"),
+                            UserName = user.name,
+                            UserEmail = user.email,
+                            UserRole = role
+                        };
+
+                        connection.Execute(sql, audit);
+
+                        return true;
                     }
-                    catch (Exception ex)
+                    else
                     {
-                        transaction.Rollback();
                         return false;
                     }
+                }
+                catch (Exception ex)
+                {
+                    return false;
                 }
             }
         }
 
-        internal List<TransactionAudit> GetAccountTransaction(long accountId, string token)
+        internal List<TransactionResponse> GetAccountTransaction(long accountId, string token)
         {
             using (MySqlConnection connection = new MySqlConnection(Configuration.GetValue<string>("ConnectionString")))
             {
@@ -131,9 +125,21 @@ namespace Budget_management_back_end.Core
 
                     if (HaveGrants(connection, accountId, token, "B", out string role))
                     {
-                        string sql = @"SELECT * FROM Transaction_Audit WHERE Account_Id = @AccountId";
+                        string sql = @"SELECT 
+                                        ta.Id as id,
+                                        ta.Sum as sum,
+                                        (SELECT Code FROM Currency where Id IN (SELECT Currency_Id from Balance where Id = ta.Balance_To_Id OR Id = ta.Balance_From_Id)) as Currency,
+                                        ta.Date_Time as date,
+                                        ta.User_Name as userName,
+                                        ta.User_Email as userEmail,
+                                        ta.User_Role as userRole,
+                                        (SELECT Name FROM Finance_Entity where Id = (SELECT Finance_Entity_ID from Balance where Id = ta.Balance_From_Id)) as fromEntity,
+                                        (SELECT Name FROM Finance_Entity where Id = (SELECT Finance_Entity_ID from Balance where Id = ta.Balance_To_Id)) as toEntity
+                                      FROM 
+                                        Transaction_Audit ta
+                                      WHERE ta.Account_Id = @AccountId;";
 
-                        var result = connection.Query<TransactionAudit>(sql, new { AccountId = accountId }).ToList();
+                        var result = connection.Query<TransactionResponse>(sql, new { AccountId = accountId }).ToList();
 
                         return result;
                     }

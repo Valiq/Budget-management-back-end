@@ -17,20 +17,20 @@ namespace Budget_management_back_end.Controllers
         }
 
         [HttpPost("api/v1/accounts/{id}/finance-entities")]
-        public async Task<IActionResult> CreateEntity([FromHeader] string Token, [FromRoute] long accountId, [FromBody] FinanceEntityRequest request)
+        public async Task<IActionResult> CreateEntity([FromHeader] string Token, [FromRoute] long id, [FromBody] FinanceEntityRequest request)
         {
-            long id = Worker.AddFinanceEntity(accountId, request, Token);
+            long entityId = Worker.AddFinanceEntity(id, request, Token);
 
-            if (id != -1)
-                return Ok(new { Id = id });
+            if (entityId != -1)
+                return Ok(new { Id = entityId });
             else
                 return BadRequest();
         }
 
         [HttpGet("api/v1/accounts/{id}/finance-entities")]
-        public async Task<IActionResult> GetEntityByAccount([FromHeader] string Token, [FromRoute] long id)
+        public async Task<IActionResult> GetEntityByAccount([FromRoute] long id)
         {
-            List <FinanceEntity> entities = Worker.GetFinanceEntityByAccountId(id);
+            List<FinanceEntity> entities = Worker.GetFinanceEntityByAccountId(id);
 
             if(entities is not null)
                 return Ok(entities);
@@ -43,6 +43,7 @@ namespace Budget_management_back_end.Controllers
         {
             FinanceEntity entity = new FinanceEntity()
             {
+                Id = id,
                 Name = request.name,
                 Description = request.description
             };

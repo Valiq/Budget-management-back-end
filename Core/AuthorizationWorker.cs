@@ -19,16 +19,17 @@ namespace Budget_management_back_end.Core
         {
             try
             {
-                connection.Open();
+                var users = connection.Query<User>("SELECT id, name, email, token FROM User");
 
-                string sql = @"SELECT id, email, name FROM User WHERE Token = @Token";
+                foreach (var user in users)
+                {
+                    if (Verify(token, user.Token))
+                    {
+                        return new UserResponse(user.Id, user.Name, user.Email);
+                    }
+                }
 
-                var result = connection.Query<UserResponse>(sql, new { Token = HashPassword(token) }).ToList();
-
-                if (result.Count() > 0)
-                    return result[0];
-                else
-                    return null;
+                return null;
             }
             catch (Exception ex)
             {
